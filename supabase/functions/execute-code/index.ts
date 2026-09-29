@@ -11,6 +11,7 @@ interface ExecuteRequest {
   stdin?: string;
   sessionId?: string;
   platformHint?: 'replit' | 'lovable' | 'generic';
+  executor?: 'wandbox' | 'container';
 }
 
 interface ExecuteResult {
@@ -365,7 +366,7 @@ serve(async (req) => {
   try {
     // Public endpoint — this IDE is account-less by design.
 
-    const { code, language, stdin, sessionId, platformHint } = await req.json() as ExecuteRequest;
+    const { code, language, stdin, sessionId, platformHint, executor } = await req.json() as ExecuteRequest;
 
     if (!code || !code.trim()) {
       return new Response(
@@ -383,7 +384,9 @@ serve(async (req) => {
 
     const normalizedLanguage = normalizeLanguage(language);
     const forceContainer = platformHint === 'replit';
-    const useContainer = forceContainer || shouldUseContainer(normalizedLanguage);
+    const useContainer = executor
+      ? executor === 'container'
+      : forceContainer || shouldUseContainer(normalizedLanguage);
     const executorName = useContainer ? 'Container (session-capable)' : 'Wandbox';
 
     if (normalizedLanguage === 'shell' || normalizedLanguage === 'bash') {

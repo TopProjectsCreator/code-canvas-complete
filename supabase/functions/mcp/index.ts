@@ -801,23 +801,84 @@ var run_code_default = defineTool23({
 // src/lib/mcp/tools/run-shell.ts
 import { defineTool as defineTool24 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z22 } from "npm:zod@^4.4.3";
+var SERVER_URL = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var run_shell_default = defineTool24({
   name: "run_shell",
   title: "Run shell command",
-  description: "Execute an arbitrary shell command (bash) in the CodeCanvas execution sandbox. Returns stdout, stderr, and exit code. Supports multi-line scripts and pipes.",
+  description: "Execute a bash command using the configured execution runtime, Wandbox, or a persistent CodeCanvas server session. Choose executor='server' to run on the server; its first call creates a session and returns sessionId, which you should reuse on later calls. Use destroy_container when finished. Returns stdout, stderr, and exit code.",
   inputSchema: {
     command: z22.string().min(1).describe("Shell command or multi-line bash script to run."),
     stdin: z22.string().optional(),
-    timeout_ms: z22.number().int().min(1e3).max(6e4).optional()
+    timeout_ms: z22.number().int().min(1e3).max(6e4).optional(),
+    executor: z22.enum(["wandbox", "server"]).optional().describe("Execution location. Omit to use the configured runtime; choose server for a persistent server-side session or wandbox to force Wandbox."),
+    sessionId: z22.string().min(1).optional().describe("Existing server session ID returned by a previous run_shell call with executor='server'.")
   },
   annotations: {
     readOnlyHint: false,
     destructiveHint: true,
     openWorldHint: true
   },
-  handler: async ({ command, stdin, timeout_ms }, ctx) => {
+  handler: async ({ command, stdin, timeout_ms, executor, sessionId }, ctx) => {
     const gate = requireAuth(ctx);
     if (gate) return gate;
+    if (sessionId && executor !== "server") {
+      return err("sessionId can only be used with executor='server'.");
+    }
+    if (executor === "server") {
+      if (stdin) {
+        return err("stdin is not supported by persistent server shell sessions. Run a command that reads from a file or pipe instead.");
+      }
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${ctx.getToken()}`
+      };
+      try {
+        let activeSessionId = sessionId;
+        if (!activeSessionId) {
+          const createResponse = await fetch(`${SERVER_URL}/api/replit/container`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ projectName: "mcp-shell" })
+          });
+          const createText = await createResponse.text();
+          let createData;
+          try {
+            createData = JSON.parse(createText);
+          } catch {
+            createData = { raw: createText };
+          }
+          if (!createResponse.ok) {
+            return err(`Server shell session creation failed (${createResponse.status}): ${createText.slice(0, 500)}`);
+          }
+          if (typeof createData.sessionId !== "string" || !createData.sessionId) {
+            return err("Server did not return a sessionId for the persistent shell.");
+          }
+          activeSessionId = createData.sessionId;
+        }
+        const res = await fetch(
+          `${SERVER_URL}/api/replit/container/${encodeURIComponent(activeSessionId)}/exec`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ command, timeout_ms: timeout_ms ?? 15e3 })
+          }
+        );
+        const text = await res.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = { raw: text };
+        }
+        if (!res.ok) {
+          return err(`Server shell execution failed (${res.status}, sessionId ${activeSessionId}): ${text.slice(0, 500)}`);
+        }
+        return ok({ ...parsed, sessionId: activeSessionId, executor: "server" });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return err(`Server shell execution error: ${message}`);
+      }
+    }
     try {
       const res = await fetch(
         `${process.env.SUPABASE_URL}/functions/v1/execute-code`,
@@ -832,7 +893,8 @@ var run_shell_default = defineTool24({
             language: "bash",
             code: command,
             stdin: stdin ?? "",
-            timeout: timeout_ms ?? 15e3
+            timeout: timeout_ms ?? 15e3,
+            ...executor ? { executor } : {}
           })
         }
       );
@@ -881,7 +943,7 @@ var get_preview_url_default = defineTool25({
 // src/lib/mcp/tools/create-container.ts
 import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z24 } from "npm:zod@^4.4.3";
-var SERVER_URL = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL2 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var create_container_default = defineTool26({
   name: "create_container",
   title: "Create persistent container",
@@ -898,7 +960,7 @@ var create_container_default = defineTool26({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL}/api/replit/container`, {
+      const res = await fetch(`${SERVER_URL2}/api/replit/container`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -925,7 +987,7 @@ var create_container_default = defineTool26({
 // src/lib/mcp/tools/container-exec.ts
 import { defineTool as defineTool27 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z25 } from "npm:zod@^4.4.3";
-var SERVER_URL2 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL3 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_exec_default = defineTool27({
   name: "container_exec",
   title: "Execute command in container",
@@ -940,7 +1002,7 @@ var container_exec_default = defineTool27({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL2}/api/replit/container/${encodeURIComponent(sessionId)}/exec`, {
+      const res = await fetch(`${SERVER_URL3}/api/replit/container/${encodeURIComponent(sessionId)}/exec`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -967,7 +1029,7 @@ var container_exec_default = defineTool27({
 // src/lib/mcp/tools/container-write-file.ts
 import { defineTool as defineTool28 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z26 } from "npm:zod@^4.4.3";
-var SERVER_URL3 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL4 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_write_file_default = defineTool28({
   name: "container_write_file",
   title: "Write file to container",
@@ -982,7 +1044,7 @@ var container_write_file_default = defineTool28({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL3}/api/replit/container/${encodeURIComponent(sessionId)}/write-file`, {
+      const res = await fetch(`${SERVER_URL4}/api/replit/container/${encodeURIComponent(sessionId)}/write-file`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1009,7 +1071,7 @@ var container_write_file_default = defineTool28({
 // src/lib/mcp/tools/container-read-file.ts
 import { defineTool as defineTool29 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z27 } from "npm:zod@^4.4.3";
-var SERVER_URL4 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL5 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_read_file_default = defineTool29({
   name: "container_read_file",
   title: "Read file from container",
@@ -1023,7 +1085,7 @@ var container_read_file_default = defineTool29({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL4}/api/replit/container/${encodeURIComponent(sessionId)}/read-file?path=${encodeURIComponent(path)}`, {
+      const res = await fetch(`${SERVER_URL5}/api/replit/container/${encodeURIComponent(sessionId)}/read-file?path=${encodeURIComponent(path)}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${ctx.getToken()}`
@@ -1048,7 +1110,7 @@ var container_read_file_default = defineTool29({
 // src/lib/mcp/tools/container-list-files.ts
 import { defineTool as defineTool30 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z28 } from "npm:zod@^4.4.3";
-var SERVER_URL5 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL6 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_list_files_default = defineTool30({
   name: "container_list_files",
   title: "List files in container",
@@ -1061,7 +1123,7 @@ var container_list_files_default = defineTool30({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL5}/api/replit/container/${encodeURIComponent(sessionId)}/files`, {
+      const res = await fetch(`${SERVER_URL6}/api/replit/container/${encodeURIComponent(sessionId)}/files`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${ctx.getToken()}`
@@ -1086,7 +1148,7 @@ var container_list_files_default = defineTool30({
 // src/lib/mcp/tools/destroy-container.ts
 import { defineTool as defineTool31 } from "npm:@lovable.dev/mcp-js@0.20.1";
 import { z as z29 } from "npm:zod@^4.4.3";
-var SERVER_URL6 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var SERVER_URL7 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var destroy_container_default = defineTool31({
   name: "destroy_container",
   title: "Destroy container",
@@ -1099,7 +1161,7 @@ var destroy_container_default = defineTool31({
     const gate = requireAuth(ctx);
     if (gate) return gate;
     try {
-      const res = await fetch(`${SERVER_URL6}/api/replit/container/${encodeURIComponent(sessionId)}`, {
+      const res = await fetch(`${SERVER_URL7}/api/replit/container/${encodeURIComponent(sessionId)}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${ctx.getToken()}`
