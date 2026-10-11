@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
+import { whiteboardSceneHash } from '@/lib/threadWhiteboardSync';
 import {
   buildThreadCluster,
   
@@ -642,16 +643,9 @@ export default function GlobalWhiteboard() {
     const safeElements = orphanIds.size
       ? (elements as any[]).filter((el) => !orphanIds.has(el.id))
       : (elements as any[]);
-    const filesHash = Object.keys(trimmedFiles).sort().join(',');
     // Signature must change whenever ANY element changes (moves, styling, deletes),
     // not just when the element count or the last element's version changes.
-    let versionSum = 0;
-    let deletedCount = 0;
-    for (const el of safeElements) {
-      versionSum += (el?.version || 0) + (el?.versionNonce || 0) % 1000;
-      if (el?.isDeleted) deletedCount++;
-    }
-    const hash = `${safeElements.length}:${liveCount}:${deletedCount}:${versionSum}:${filesHash}`;
+    const hash = whiteboardSceneHash(safeElements, Object.keys(trimmedFiles));
     if (hash === lastSentHashRef.current) return;
     const newFiles = Object.fromEntries(
       Object.entries(trimmedFiles).filter(([id]) => !knownFileIdsRef.current.has(id))
