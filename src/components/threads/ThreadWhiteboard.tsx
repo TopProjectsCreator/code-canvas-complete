@@ -3,6 +3,7 @@ import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { whiteboardSceneHash } from '@/lib/threadWhiteboardSync';
 
 interface Props {
   threadId: string;
@@ -111,16 +112,9 @@ export function ThreadWhiteboard({ threadId }: Props) {
     for (const [k, v] of Object.entries(files || {})) {
       if (referenced.has(k)) trimmedFiles[k] = v;
     }
-    const filesHash = Object.keys(trimmedFiles).sort().join(',');
     // Signature must change whenever ANY element changes (moves, styling, deletes),
     // not just when the element count or the last element's version changes.
-    let versionSum = 0;
-    let deletedCount = 0;
-    for (const el of elements as any[]) {
-      versionSum += (el?.version || 0) + (el?.versionNonce || 0) % 1000;
-      if (el?.isDeleted) deletedCount++;
-    }
-    const hash = `${elements.length}:${deletedCount}:${versionSum}:${filesHash}`;
+    const hash = whiteboardSceneHash(elements as any[], Object.keys(trimmedFiles));
     if (hash === lastSentHashRef.current) return;
     const newFiles = Object.fromEntries(
       Object.entries(trimmedFiles).filter(([id]) => !knownFileIdsRef.current.has(id))
