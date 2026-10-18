@@ -718,7 +718,7 @@
       {
         "name": "run_shell",
         "title": "Run shell command",
-        "description": "Execute an arbitrary shell command (bash) in the CodeCanvas execution sandbox. Returns stdout, stderr, and exit code. Supports multi-line scripts and pipes.",
+        "description": "Execute a bash command using the configured execution runtime, Wandbox, or a persistent CodeCanvas server session. Choose executor='server' to run on the server; its first call creates a session and returns sessionId, which you should reuse on later calls. Use destroy_container when finished. Returns stdout, stderr, and exit code.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": true,
@@ -740,6 +740,19 @@
               "type": "integer",
               "minimum": 1000,
               "maximum": 60000
+            },
+            "executor": {
+              "description": "Execution location. Omit to use the configured runtime; choose server for a persistent server-side session or wandbox to force Wandbox.",
+              "type": "string",
+              "enum": [
+                "wandbox",
+                "server"
+              ]
+            },
+            "sessionId": {
+              "description": "Existing server session ID returned by a previous run_shell call with executor='server'.",
+              "type": "string",
+              "minLength": 1
             }
           },
           "required": [
