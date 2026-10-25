@@ -158,6 +158,8 @@ export const ProjectsDialog = ({
   }, [projects, projectLabels, searchQuery, sortMode]);
 
   const virtualizer = useVirtualizer({
+    enabled: open,
+    initialRect: { width: 600, height: 400 },
     count: sortedAndFilteredProjects.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 150,
