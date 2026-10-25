@@ -16,7 +16,11 @@ export interface ProjectRecord {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  folder_names?: string[];
 }
+
+export type ProjectSummary = Omit<ProjectRecord, 'files'>;
+export const PROJECT_LIST_COLUMNS = 'id,user_id,name,description,language,is_public,forked_from,stars_count,publish_slug,published_at,created_at,updated_at,folder_names';
 
 export interface ApiKeyRecord {
   id: string;
@@ -64,7 +68,7 @@ interface UpdateProjectInput {
 
 export interface DataProvider {
   platform: DeploymentPlatform;
-  listProjects: (userId: string) => Promise<ProjectRecord[]>;
+  listProjects: (userId: string) => Promise<ProjectSummary[]>;
   createProject: (payload: CreateProjectInput) => Promise<ProjectRecord>;
   updateProject: (payload: UpdateProjectInput) => Promise<ProjectRecord>;
   getProjectById: (projectId: string) => Promise<ProjectRecord>;
@@ -87,13 +91,21 @@ const normalizeProjectFiles = (project: { files: unknown } & Record<string, unkn
 const supabaseProvider: DataProvider = {
   platform: 'generic',
   async listProjects(userId) {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map((project) => normalizeProjectFiles(project as any));
+    const projects: ProjectSummary[] = [];
+    const pageSize = 1000;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('projects')
+        .select(PROJECT_LIST_COLUMNS)
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .order('id')
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      const page = (data ?? []) as unknown as ProjectSummary[];
+      projects.push(...page);
+      if (page.length < pageSize) return projects;
+    }
   },
   async createProject(payload) {
     const { data, error } = await supabase
@@ -230,7 +242,7 @@ const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider
 
   return {
     platform,
-    listProjects: (userId) => call<ProjectRecord[]>(`/projects?user_id=${encodeURIComponent(userId)}`),
+    listProjects: (userId) => call<ProjectSummary[]>(`/projects?user_id=${encodeURIComponent(userId)}&select=${encodeURIComponent(PROJECT_LIST_COLUMNS)}`),
     createProject: (payload) => call<ProjectRecord>('/projects', { method: 'POST', body: JSON.stringify(payload) }),
     updateProject: ({ id, ...payload }) => call<ProjectRecord>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
     getProjectById: (projectId) => call<ProjectRecord>(`/projects/${projectId}`),

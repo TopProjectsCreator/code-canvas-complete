@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, type SetStateAction } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileNode } from '@/types/ide';
 import { useToast } from '@/hooks/use-toast';
-import { createDataProvider } from '@/integrations/data/provider';
+import { createDataProvider, type ProjectSummary } from '@/integrations/data/provider';
 
 export interface Project {
   id: string;
@@ -18,33 +19,46 @@ export interface Project {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  folder_names?: string[];
 }
 
 export const useProjects = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const dataProvider = useMemo(() => createDataProvider(), []);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const userId = user?.id;
+  const queryKey = useMemo(() => ['my-projects', dataProvider.platform, userId], [dataProvider.platform, userId]);
+  const projectQuery = useQuery({
+    queryKey,
+    queryFn: () => userId ? dataProvider.listProjects(userId) : Promise.resolve([]),
+    enabled: Boolean(userId),
+    staleTime: 60_000,
+    gcTime: 300_000,
+  });
+  const projects = userId ? projectQuery.data ?? [] : [];
+  const setProjects = useCallback((update: SetStateAction<ProjectSummary[]>) => {
+    queryClient.setQueryData<ProjectSummary[]>(queryKey, (previous = []) =>
+      typeof update === 'function' ? update(previous) : update);
+  }, [queryClient, queryKey]);
+  const [mutating, setLoading] = useState(false);
+  const loading = mutating;
+  const listLoading = Boolean(userId) && projectQuery.isPending;
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
 
   const fetchProjects = useCallback(async () => {
     if (!user) return;
     
-    setLoading(true);
     try {
-      const loadedProjects = await dataProvider.listProjects(user.id);
-      setProjects(loadedProjects as Project[]);
+      await queryClient.fetchQuery({ queryKey, queryFn: () => dataProvider.listProjects(user.id), staleTime: 60_000 });
     } catch (error: unknown) {
       toast({
         title: 'Error loading projects',
         description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, queryClient, queryKey]);
 
   const saveProject = useCallback(async (
     name: string,
@@ -77,7 +91,8 @@ export const useProjects = () => {
           is_public: isPublic ?? false,
         });
         setCurrentProject(updated);
-        setProjects(prev => prev.map(p => p.id === projectId ? updated : p));
+        const { files: _files, ...summary } = updated;
+        setProjects(prev => prev.map(p => p.id === projectId ? summary : p));
         
         toast({
           title: 'Project saved!',
@@ -96,7 +111,8 @@ export const useProjects = () => {
           is_public: isPublic ?? false,
         });
         setCurrentProject(newProject);
-        setProjects(prev => [newProject, ...prev]);
+        const { files: _files, ...summary } = newProject;
+        setProjects(prev => [summary, ...prev]);
         
         toast({
           title: 'Project created!',
@@ -115,7 +131,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   const loadProject = useCallback(async (projectId: string) => {
     setLoading(true);
@@ -164,7 +180,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, currentProject, toast, dataProvider]);
+  }, [user, currentProject, toast, dataProvider, setProjects]);
 
   const forkProject = useCallback(async (project: Project) => {
     if (!user) {
@@ -187,7 +203,8 @@ export const useProjects = () => {
         is_public: false,
         forked_from: project.id,
       });
-      setProjects(prev => [forkedProject, ...prev]);
+      const { files: _files, ...summary } = forkedProject;
+      setProjects(prev => [summary, ...prev]);
       
       toast({
         title: 'Project forked!',
@@ -205,7 +222,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   const toggleStar = useCallback(async (projectId: string) => {
     if (!user) {
@@ -256,12 +273,13 @@ export const useProjects = () => {
       });
       return false;
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   return {
     projects,
     currentProject,
     loading,
+    listLoading,
     fetchProjects,
     saveProject,
     loadProject,
