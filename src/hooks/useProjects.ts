@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, type SetStateAction } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileNode } from '@/types/ide';
 import { useToast } from '@/hooks/use-toast';
-import { createDataProvider } from '@/integrations/data/provider';
+import { createDataProvider, type ProjectSummary } from '@/integrations/data/provider';
 
 export interface Project {
   id: string;
@@ -18,33 +19,45 @@ export interface Project {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  folder_names?: string[];
 }
 
 export const useProjects = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const dataProvider = useMemo(() => createDataProvider(), []);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const userId = user?.id;
+  const queryKey = useMemo(() => ['my-projects', dataProvider.platform, userId], [dataProvider.platform, userId]);
+  const projectQuery = useQuery({
+    queryKey,
+    queryFn: () => userId ? dataProvider.listProjects(userId) : Promise.resolve([]),
+    enabled: Boolean(userId),
+    staleTime: 60_000,
+    gcTime: 300_000,
+  });
+  const projects = userId ? projectQuery.data ?? [] : [];
+  const setProjects = useCallback((update: SetStateAction<ProjectSummary[]>) => {
+    queryClient.setQueryData<ProjectSummary[]>(queryKey, (previous = []) =>
+      typeof update === 'function' ? update(previous) : update);
+  }, [queryClient, queryKey]);
+  const [mutating, setLoading] = useState(false);
+  const loading = mutating || (Boolean(userId) && projectQuery.isPending);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
 
   const fetchProjects = useCallback(async () => {
     if (!user) return;
     
-    setLoading(true);
     try {
-      const loadedProjects = await dataProvider.listProjects(user.id);
-      setProjects(loadedProjects as Project[]);
+      await queryClient.fetchQuery({ queryKey, queryFn: () => dataProvider.listProjects(user.id), staleTime: 60_000 });
     } catch (error: unknown) {
       toast({
         title: 'Error loading projects',
         description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, queryClient, queryKey]);
 
   const saveProject = useCallback(async (
     name: string,

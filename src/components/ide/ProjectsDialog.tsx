@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Dialog,
   DialogContent,
@@ -7,11 +8,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useProjects, Project } from '@/hooks/useProjects';
+import type { ProjectSummary } from '@/integrations/data/provider';
 import { formatDistanceToNow } from 'date-fns';
 import {
   FolderOpen,
@@ -46,7 +47,12 @@ const normalizeFolderName = (path: string) => {
   return parts.length > 1 ? parts[0] : 'Root';
 };
 
-const collectProjectFolders = (project: Project) => {
+const collectProjectFolders = (project: ProjectSummary) => {
+  if (project.folder_names) return project.folder_names;
+  return [];
+};
+
+export const collectFullProjectFolders = (project: Project) => {
   const folderNames = new Set<string>();
 
   const walk = (nodes: Project['files'], currentTopLevelFolder: string | null = null) => {
@@ -78,7 +84,9 @@ export const ProjectsDialog = ({
   onSelectProject,
   onNewProject,
 }: ProjectsDialogProps) => {
-  const { projects, loading, fetchProjects, deleteProject } = useProjects();
+  const { projects, loading, fetchProjects, deleteProject, loadProject } = useProjects();
+  const [openingProject, setOpeningProject] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('updated');
   const [projectLabels, setProjectLabels] = useState<ProjectLabelsMap>({});
@@ -180,6 +188,28 @@ export const ProjectsDialog = ({
     });
   }, [projects, projectLabels, searchQuery, sortMode]);
 
+  const virtualizer = useVirtualizer({
+    count: sortedAndFilteredProjects.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 150,
+    overscan: 4,
+    getItemKey: (index) => sortedAndFilteredProjects[index].id,
+  });
+
+  const openProject = async (projectId: string) => {
+    if (openingProject) return;
+    setOpeningProject(projectId);
+    try {
+      const project = await loadProject(projectId);
+      if (project) {
+        onSelectProject(project);
+        onOpenChange(false);
+      }
+    } finally {
+      setOpeningProject(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh]">
@@ -223,8 +253,8 @@ export const ProjectsDialog = ({
           </div>
         </div>
 
-        <ScrollArea className="h-[400px] pr-4">
-          {loading ? (
+        <div ref={scrollRef} className="h-[400px] overflow-y-auto pr-4" aria-busy={loading || Boolean(openingProject)}>
+          {loading && projects.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
@@ -245,23 +275,28 @@ export const ProjectsDialog = ({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {sortedAndFilteredProjects.map((project) => {
+            <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+              {virtualizer.getVirtualItems().map((row) => {
+                const project = sortedAndFilteredProjects[row.index];
                 const labels = projectLabels[project.id] || [];
                 const folders = collectProjectFolders(project);
 
                 return (
                   <div
                     key={project.id}
-                    onClick={() => { onSelectProject(project); onOpenChange(false); }}
+                    data-index={row.index}
+                    ref={virtualizer.measureElement}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${row.start}px)` }}
+                    onClick={() => { void openProject(project.id); }}
                     className={cn(
-                      'flex items-center justify-between p-4 rounded-lg border border-border',
+                      'flex items-center justify-between p-4 mb-2 rounded-lg border border-border',
                       'hover:bg-accent cursor-pointer transition-colors group'
                     )}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium truncate">{project.name}</h4>
+                        {openingProject === project.id && <Loader2 className="w-4 h-4 animate-spin" />}
                         {project.is_public ? (
                           <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                         ) : (
@@ -350,7 +385,7 @@ export const ProjectsDialog = ({
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

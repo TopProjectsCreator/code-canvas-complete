@@ -64,7 +64,7 @@ export const buildMapleMessages = (
     const role = turn?.role === 'assistant' ? 'assistant' : 'user';
     const last = out[out.length - 1];
     // Never hand the template two same-role turns in a row.
-    if (last && last.role === role && last.role !== 'system') last.content += `\n\n${content}`;
+    if (last && last.role === role) last.content += `\n\n${content}`;
     else out.push({ role, content });
   }
   const text = String(prompt ?? '');
