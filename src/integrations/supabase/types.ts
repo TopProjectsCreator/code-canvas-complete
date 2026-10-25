@@ -1220,6 +1220,7 @@ export type Database = {
           created_at: string
           description: string | null
           files: Json
+          folder_names: string[]
           forked_from: string | null
           id: string
           is_public: boolean | null
@@ -1235,6 +1236,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           files?: Json
+          folder_names?: string[]
           forked_from?: string | null
           id?: string
           is_public?: boolean | null
@@ -1250,6 +1252,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           files?: Json
+          folder_names?: string[]
           forked_from?: string | null
           id?: string
           is_public?: boolean | null
@@ -2265,6 +2268,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      project_folder_names: { Args: { _files: Json }; Returns: string[] }
       save_global_whiteboard_scene: {
         Args: {
           _app_state?: Json
