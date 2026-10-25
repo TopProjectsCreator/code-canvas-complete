@@ -8,7 +8,8 @@ import {
   ArrowRight, BookOpen, FolderGit2, Gauge, Home, Sparkles, Star, Terminal, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProjects, type Project } from '@/hooks/useProjects';
+import { useProjects } from '@/hooks/useProjects';
+import type { ProjectSummary } from '@/integrations/data/provider';
 
 /* -------------------------------------------------------------------------- */
 /* Hooks                                                                       */
@@ -402,7 +403,7 @@ const NavScreen = ({ navigate }: { navigate: NavigateFunction }) => {
   );
 };
 
-const ProjectsScreen = ({ projects, loading, isAuthed, navigate }: { projects: Project[]; loading: boolean; isAuthed: boolean; navigate: NavigateFunction }) => {
+const ProjectsScreen = ({ projects, loading, isAuthed, navigate }: { projects: ProjectSummary[]; loading: boolean; isAuthed: boolean; navigate: NavigateFunction }) => {
   const top = useMemo(() => {
     const sorted = [...projects].sort((a, b) =>
       (b.stars_count || 0) - (a.stars_count || 0) ||
@@ -628,7 +629,7 @@ const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { projects, loading, fetchProjects } = useProjects();
+  const { projects, listLoading: loading, fetchProjects } = useProjects();
   const [locked, setLocked] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
 
