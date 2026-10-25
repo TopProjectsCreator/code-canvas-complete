@@ -42,40 +42,9 @@ type ProjectLabelsMap = Record<string, string[]>;
 
 const LABEL_STORAGE_KEY = 'projectLabelsMap';
 
-const normalizeFolderName = (path: string) => {
-  const parts = path.split('/').filter(Boolean);
-  return parts.length > 1 ? parts[0] : 'Root';
-};
-
 const collectProjectFolders = (project: ProjectSummary) => {
   if (project.folder_names) return project.folder_names;
   return [];
-};
-
-export const collectFullProjectFolders = (project: Project) => {
-  const folderNames = new Set<string>();
-
-  const walk = (nodes: Project['files'], currentTopLevelFolder: string | null = null) => {
-    nodes.forEach((node) => {
-      if (node.type === 'folder') {
-        const topLevelFolder = currentTopLevelFolder ?? node.name;
-        folderNames.add(topLevelFolder);
-        if (node.children) {
-          walk(node.children, topLevelFolder);
-        }
-        return;
-      }
-
-      if (currentTopLevelFolder) {
-        folderNames.add(currentTopLevelFolder);
-      } else {
-        folderNames.add(normalizeFolderName(node.name));
-      }
-    });
-  };
-
-  walk(project.files || []);
-  return Array.from(folderNames).sort((a, b) => a.localeCompare(b));
 };
 
 export const ProjectsDialog = ({
@@ -84,7 +53,7 @@ export const ProjectsDialog = ({
   onSelectProject,
   onNewProject,
 }: ProjectsDialogProps) => {
-  const { projects, loading, fetchProjects, deleteProject, loadProject } = useProjects();
+  const { projects, listLoading, fetchProjects, deleteProject, loadProject } = useProjects();
   const [openingProject, setOpeningProject] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -253,8 +222,8 @@ export const ProjectsDialog = ({
           </div>
         </div>
 
-        <div ref={scrollRef} className="h-[400px] overflow-y-auto pr-4" aria-busy={loading || Boolean(openingProject)}>
-          {loading && projects.length === 0 ? (
+        <div ref={scrollRef} className="h-[400px] overflow-y-auto pr-4" aria-busy={listLoading || Boolean(openingProject)}>
+          {listLoading && projects.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>

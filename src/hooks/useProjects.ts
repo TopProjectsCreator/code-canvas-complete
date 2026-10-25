@@ -42,7 +42,8 @@ export const useProjects = () => {
       typeof update === 'function' ? update(previous) : update);
   }, [queryClient, queryKey]);
   const [mutating, setLoading] = useState(false);
-  const loading = mutating || (Boolean(userId) && projectQuery.isPending);
+  const loading = mutating;
+  const listLoading = Boolean(userId) && projectQuery.isPending;
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
 
   const fetchProjects = useCallback(async () => {
@@ -90,7 +91,8 @@ export const useProjects = () => {
           is_public: isPublic ?? false,
         });
         setCurrentProject(updated);
-        setProjects(prev => prev.map(p => p.id === projectId ? updated : p));
+        const { files: _files, ...summary } = updated;
+        setProjects(prev => prev.map(p => p.id === projectId ? summary : p));
         
         toast({
           title: 'Project saved!',
@@ -109,7 +111,8 @@ export const useProjects = () => {
           is_public: isPublic ?? false,
         });
         setCurrentProject(newProject);
-        setProjects(prev => [newProject, ...prev]);
+        const { files: _files, ...summary } = newProject;
+        setProjects(prev => [summary, ...prev]);
         
         toast({
           title: 'Project created!',
@@ -128,7 +131,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   const loadProject = useCallback(async (projectId: string) => {
     setLoading(true);
@@ -177,7 +180,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, currentProject, toast, dataProvider]);
+  }, [user, currentProject, toast, dataProvider, setProjects]);
 
   const forkProject = useCallback(async (project: Project) => {
     if (!user) {
@@ -200,7 +203,8 @@ export const useProjects = () => {
         is_public: false,
         forked_from: project.id,
       });
-      setProjects(prev => [forkedProject, ...prev]);
+      const { files: _files, ...summary } = forkedProject;
+      setProjects(prev => [summary, ...prev]);
       
       toast({
         title: 'Project forked!',
@@ -218,7 +222,7 @@ export const useProjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   const toggleStar = useCallback(async (projectId: string) => {
     if (!user) {
@@ -269,12 +273,13 @@ export const useProjects = () => {
       });
       return false;
     }
-  }, [user, toast, dataProvider]);
+  }, [user, toast, dataProvider, setProjects]);
 
   return {
     projects,
     currentProject,
     loading,
+    listLoading,
     fetchProjects,
     saveProject,
     loadProject,
