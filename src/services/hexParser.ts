@@ -16,22 +16,39 @@ export interface FlashPage {
 }
 
 /**
- * Parse a single Intel HEX line into a record
+ * Parse a single Intel HEX line into a record.
+ * Returns null for non-HEX lines and throws for malformed/corrupt HEX lines
+ * so that bad records are never silently converted to wrong bytes.
  */
 function parseHexLine(line: string): HexRecord | null {
   line = line.trim();
   if (!line.startsWith(':')) return null;
 
   const hex = line.slice(1);
-  if (hex.length < 10) return null;
+  if (hex.length < 10) {
+    throw new Error(`Invalid Intel HEX record (too short): ${line}`);
+  }
 
   const byteCount = parseInt(hex.slice(0, 2), 16);
   const address = parseInt(hex.slice(2, 6), 16);
   const type = parseInt(hex.slice(6, 8), 16);
 
+  // A record must contain the 4-byte header, `byteCount` data bytes and a
+  // 1-byte checksum. A truncated line would otherwise decode to NaN and be
+  // silently stored as 0, corrupting the firmware.
+  if (hex.length !== byteCount * 2 + 10) {
+    throw new Error(
+      `Invalid Intel HEX record (length ${hex.length} does not match declared byte count ${byteCount}): ${line}`
+    );
+  }
+
   const data = new Uint8Array(byteCount);
   for (let i = 0; i < byteCount; i++) {
-    data[i] = parseInt(hex.slice(8 + i * 2, 10 + i * 2), 16);
+    const byte = parseInt(hex.slice(8 + i * 2, 10 + i * 2), 16);
+    if (Number.isNaN(byte)) {
+      throw new Error(`Invalid Intel HEX record (non-hex data): ${line}`);
+    }
+    data[i] = byte;
   }
 
   // Verify checksum
@@ -40,7 +57,7 @@ function parseHexLine(line: string): HexRecord | null {
     checksum += parseInt(hex.slice(i, i + 2), 16);
   }
   if ((checksum & 0xFF) !== 0) {
-    console.warn(`Checksum mismatch on line: ${line}`);
+    throw new Error(`Checksum mismatch in Intel HEX record: ${line}`);
   }
 
   return { byteCount, address, type, data };
