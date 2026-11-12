@@ -209,6 +209,8 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          dm_user_a: string | null
+          dm_user_b: string | null
           id: string
           is_dm: boolean
           is_private: boolean
@@ -221,6 +223,8 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          dm_user_a?: string | null
+          dm_user_b?: string | null
           id?: string
           is_dm?: boolean
           is_private?: boolean
@@ -233,6 +237,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          dm_user_a?: string | null
+          dm_user_b?: string | null
           id?: string
           is_dm?: boolean
           is_private?: boolean
@@ -2228,6 +2234,23 @@ export type Database = {
       }
     }
     Functions: {
+      create_dm_channel: {
+        Args: { _target_user_id: string; _workspace_id: string }
+        Returns: {
+          created_at: string
+          created_by: string
+          description: string | null
+          dm_user_a: string | null
+          dm_user_b: string | null
+          id: string
+          is_dm: boolean
+          is_private: boolean
+          name: string
+          topic: string | null
+          updated_at: string
+          workspace_id: string
+        }
+      }
       decrement_extension_installs: {
         Args: { ext_id: string }
         Returns: undefined
